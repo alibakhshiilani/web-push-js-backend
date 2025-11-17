@@ -1,52 +1,59 @@
-import express from 'express'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import express from "express";
+import webpush from "web-push";
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const app = express();
+app.use(express.json());
 
-const app = express()
+// ---- Configure VAPID Keys ----
+// Generate once by running: npx web-push generate-vapid-keys
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "YOUR_PUBLIC_KEY_HERE";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "YOUR_PRIVATE_KEY_HERE";
 
-// Home route - HTML
-app.get('/', (req, res) => {
-  res.type('html').send(`
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8"/>
-        <title>Express on Vercel</title>
-        <link rel="stylesheet" href="/style.css" />
-      </head>
-      <body>
-        <nav>
-          <a href="/">Home</a>
-          <a href="/about">About</a>
-          <a href="/api-data">API Data</a>
-          <a href="/healthz">Health</a>
-        </nav>
-        <h1>Welcome to Express on Vercel 🚀</h1>
-        <p>This is a minimal example without a database or forms.</p>
-        <img src="/logo.png" alt="Logo" width="120" />
-      </body>
-    </html>
-  `)
-})
+webpush.setVapidDetails(
+  "mailto:example@example.com",
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY
+);
 
-app.get('/about', function (req, res) {
-  res.sendFile(path.join(__dirname, '..', 'components', 'about.htm'))
-})
+// Temporary storage (use a DB in production)
+let subscriptions = [];
 
-// Example API endpoint - JSON
-app.get('/api-data', (req, res) => {
-  res.json({
-    message: 'Here is some sample API data',
-    items: ['apple', 'banana', 'cherry'],
-  })
-})
+/** GET public VAPID key — used by frontend to subscribe */
+app.get("/vapidPublicKey", (req, res) => {
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
 
-// Health check
-app.get('/healthz', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() })
-})
+/** Receive & store push subscription from frontend */
+app.post("/subscribe", (req, res) => {
+  const subscription = req.body;
+  subscriptions.push(subscription);
+  res.status(201).json({ message: "Subscription saved successfully" });
+});
 
-export default app
+/** Trigger push notification to all saved subscriptions */
+app.post("/push", async (req, res) => {
+  const payload = JSON.stringify({
+    title: "Hello from Web Push 🎯",
+    body: "This is a test push message.",
+  });
+
+  const sendResults = await Promise.allSettled(
+    subscriptions.map((sub) =>
+      webpush.sendNotification(sub, payload).catch((err) => {
+        console.error("Notification error:", err.message);
+      })
+    )
+  );
+
+  res.json({ sent: true, results: sendResults.length });
+});
+
+/** Health check */
+app.get("/healthz", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+export default app;
