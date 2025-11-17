@@ -6,8 +6,13 @@ app.use(express.json());
 
 // ---- Configure VAPID Keys ----
 // Generate once by running: npx web-push generate-vapid-keys
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "YOUR_PUBLIC_KEY_HERE";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "YOUR_PRIVATE_KEY_HERE";
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+
+
+console.log("Public key length:", process.env.VAPID_PUBLIC_KEY?.length);
+console.log("Private key length:", process.env.VAPID_PRIVATE_KEY?.length);
+console.log("ENV:", process.env);
 
 webpush.setVapidDetails(
   "mailto:example@example.com",
